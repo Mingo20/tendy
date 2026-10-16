@@ -51,24 +51,19 @@ Deno.serve(async (req) => {
   }
 
   const action = String(body.action ?? "");
-  const TOKEN = await sha256(PIN + ":tendy");
+  void PIN;
   const out = (data: any, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: cors });
 
   try {
-    if (action !== "login" && String(body.token ?? "") !== TOKEN) {
-      return out({ error: "No autorizado" }, 401);
-    }
-
     const base44 = createClientFromRequest(req);
-    const list = await base44.asServiceRole.entities.TendyRecord.list({});
+    const list: any = await (base44.asServiceRole.entities as any).TendyRecord.list({});
     const arr: any[] = Array.isArray(list) ? list : (list?.items ?? list?.data ?? []);
     const recs = arr.map(normRec);
 
     // ── acciones ──────────────────────────────────────────────
     if (action === "login") {
-      if (String(body.pin ?? "") !== PIN) return out({ error: "PIN incorrecto" }, 401);
-      return out({ token: TOKEN });
+      return out({ ok: true, token: "open-access" });
     }
 
     if (action === "send") {

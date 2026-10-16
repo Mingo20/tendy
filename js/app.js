@@ -86,37 +86,18 @@ function setStatus(state) { // "idle" | "thinking" | "speaking"
 }
 
 // ── vistas ────────────────────────────────────────────
-function renderLogin() {
+function renderWelcome() {
   app.innerHTML = `
 <div class="login-wrap">
   <div class="login-card">
     ${avatarSVG(120)}
     <div class="brand-name">Tendy</div>
     <p class="login-tag">Tu agente personal. Navega, busca, redacta y gestiona — todo por ti, desde cualquier dispositivo.</p>
-    <form id="login-form" autocomplete="off">
-      <input class="pin-input" id="pin" type="password" inputmode="numeric" placeholder="••••••" aria-label="PIN de acceso" autofocus>
-      <button class="login-btn" type="submit">Entrar</button>
-      <div class="login-error" id="login-error"></div>
-    </form>
-    <div class="login-hint">Acceso protegido con PIN</div>
+    <button class="login-btn" id="enter-btn">Acceder</button>
+    <div class="login-hint">Acceso directo</div>
   </div>
 </div>`;
-  $("#login-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const err = $("#login-error");
-    err.textContent = "";
-    try {
-      const d = await api("login", { pin: $("#pin").value });
-      sessionStorage.setItem("tendy_token", d.token);
-      renderChat();
-    } catch (ex) {
-      err.textContent = ex.message;
-      $(".login-card").classList.remove("shake");
-      void $(".login-card").offsetWidth;
-      $(".login-card").classList.add("shake");
-    }
-  });
-  $("#pin").focus();
+  $("#enter-btn").addEventListener("click", () => renderChat());
 }
 
 function renderChat() {
@@ -220,7 +201,6 @@ async function loadHistory() {
     if (last && last.role === "user") { setWaiting(true); startPolling(); }
     api("getConfig").then((d2) => { config = d2.config || config; }).catch(() => {});
   } catch (ex) {
-    if (String(ex.message).includes("autorizado")) { sessionStorage.removeItem("tendy_token"); renderLogin(); return; }
     toast("No pude cargar el historial: " + ex.message);
   }
 }
@@ -321,7 +301,7 @@ function openSettings() {
     sessionStorage.removeItem("tendy_token");
     stopPolling();
     o.remove();
-    renderLogin();
+    renderWelcome();
   });
   $("#save", o).addEventListener("click", async () => {
     try {
@@ -338,5 +318,5 @@ function openSettings() {
 }
 
 // ── arranque ──────────────────────────────────────────
-if (getToken()) renderChat(); else renderLogin();
+renderWelcome();
 })();
