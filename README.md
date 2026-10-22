@@ -51,3 +51,14 @@ Desde ⚙️ dentro de la app: cómo debe llamarte, su tono
   correos, calendario, GitHub, generar imágenes, etc. Las compras con pago real y
   otras acciones delicadas requieren aprobación humana.
 - El agente nunca pretende ser un abogado ni da asesoría legal.
+
+
+## Tendy Studio
+
+La interfaz ahora incluye un espacio de proyectos para crear aplicaciones mediante conversación. Cada solicitud suficientemente clara puede crear un `TendyProject`, generar `TendyTask` con skills y mantener estados persistentes.
+
+- API de orquestación: `https://superagent-573efe2c.base44.app/functions/tendyStudioApi`
+- Entidades: `TendyProject`, `TendyTask`, `TendySkill`, `TendyArtifact`
+- Skills iniciales: requirements, architecture, uiux, frontend, backend, data, integrations, github, qa, debugging, deployment, maintenance, visuals, security y docs.
+- El workflow `Tendy — responder mensaje` coordina el chat y crea planes de proyecto reales.
+- La app publicada usa sesiones anónimas para esta primera versión. Para producción multiusuario hay que activar autenticación Base44 y reforzar RLS antes de manejar datos privados.

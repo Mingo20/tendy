@@ -171,3 +171,25 @@ button { cursor: pointer; border: none; background: none; }
   .overlay { align-items: center; }
   .sheet { border-bottom: 1px solid var(--border); border-radius: 26px; margin: 20px; }
 }
+
+/* ── Tendy Studio: proyectos y actividad ───────────── */
+.project-btn { display:flex; align-items:center; gap:7px; border:1px solid var(--border-soft); color:var(--muted); background:var(--surface); border-radius:999px; padding:8px 12px; font:inherit; font-size:12px; cursor:pointer; transition:.2s; }
+.project-btn:hover { color:var(--text); background:var(--surface-2); }
+.project-dot { width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan); }
+.project-drawer { position:fixed; z-index:30; top:74px; right:max(18px, calc((100vw - 1120px)/2)); width:min(390px, calc(100vw - 28px)); padding:18px; background:rgba(13,16,31,.96); border:1px solid var(--border); border-radius:22px; box-shadow:0 24px 70px rgba(0,0,0,.48); backdrop-filter:blur(24px); animation:fadeUp .22s ease; }
+.drawer-head { display:flex; align-items:flex-start; justify-content:space-between; border-bottom:1px solid var(--border-soft); padding-bottom:14px; margin-bottom:10px; }
+.drawer-head h2 { margin-top:3px; font:600 21px "Space Grotesk",sans-serif; }
+.eyebrow { font-size:10px; letter-spacing:.12em; color:var(--cyan); font-weight:700; }
+.project-list { max-height:52vh; overflow:auto; display:grid; gap:8px; }
+.project-card { width:100%; display:flex; align-items:center; gap:11px; text-align:left; border:1px solid transparent; background:rgba(255,255,255,.04); color:var(--text); border-radius:14px; padding:12px; cursor:pointer; font:inherit; }
+.project-card:hover { border-color:rgba(34,211,238,.4); background:rgba(34,211,238,.08); }
+.project-mark { width:32px; height:32px; display:grid; place-items:center; border-radius:10px; color:#fff; background:var(--grad); }
+.project-card-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:3px; }
+.project-card-main strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.project-card-main small,.drawer-empty small { color:var(--muted); font-size:11px; }
+.chevron { color:var(--muted); font-size:22px; }
+.drawer-loading,.drawer-empty { color:var(--muted); text-align:center; padding:28px 8px; line-height:1.6; font-size:13px; }
+.new-project { width:100%; margin-top:12px; padding:11px; border:1px dashed rgba(34,211,238,.5); border-radius:12px; color:var(--cyan); background:transparent; cursor:pointer; font:inherit; font-size:13px; }
+.new-project:hover { background:rgba(34,211,238,.08); }
+@media (min-width: 860px) { .chat { max-width:1120px; margin:auto; } .msgs { padding-left:clamp(40px,9vw,150px); padding-right:clamp(40px,9vw,150px); } .msg { max-width:82%; } }
+@media (max-width: 560px) { .project-label { display:none; } .project-btn { padding:9px; } .project-drawer { top:66px; right:14px; } }

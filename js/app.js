@@ -3,6 +3,7 @@
 "use strict";
 
 const API = window.TENDY_API_BASE ?? "";
+const STUDIO_API = window.TENDY_STUDIO_API_BASE ?? "https://superagent-573efe2c.base44.app/functions/tendyStudioApi";
 const app = document.getElementById("app");
 const toastEl = document.getElementById("toast");
 let uidCounter = 0;
@@ -35,6 +36,13 @@ function toast(msg) {
   toastEl.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+}
+
+async function studioApi(action, extra = {}) {
+  const res = await fetch(STUDIO_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, client_id: clientId, ...extra }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ("Error " + res.status));
+  return data;
 }
 
 async function api(action, extra = {}) {
@@ -109,6 +117,7 @@ function renderChat() {
       <h1>Tendy <span class="grad">AI</span></h1>
       <div class="status" id="status"><span class="dot"></span><span>en línea</span></div>
     </div>
+    <button class="project-btn" id="projects-btn" title="Mis proyectos"><span class="project-dot"></span><span class="project-label">Proyectos</span></button>
     <button class="icon-btn" id="settings-btn" title="Configurar a Tendy" aria-label="Configurar a Tendy">
       <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
     </button>
@@ -126,6 +135,7 @@ function renderChat() {
 </div>`;
   wireAvatar();
   $("#settings-btn").addEventListener("click", openSettings);
+  $("#projects-btn").addEventListener("click", openProjects);
   const input = $("#input");
   input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; });
   input.addEventListener("keydown", (e) => {
@@ -134,6 +144,34 @@ function renderChat() {
   $("#send").addEventListener("click", () => sendMessage(input.value));
   renderChips();
   loadHistory();
+}
+
+
+async function openProjects() {
+  const old = document.querySelector(".project-drawer"); if (old) { old.remove(); return; }
+  const wrap = document.createElement("div"); wrap.className = "project-drawer";
+  wrap.innerHTML = `<div class="drawer-head"><div><span class="eyebrow">ESPACIO DE TRABAJO</span><h2>Mis proyectos</h2></div><button class="icon-btn" data-close aria-label="Cerrar">×</button></div><div class="project-list"><div class="drawer-loading">Cargando proyectos…</div></div><button class="new-project" id="new-project">＋ Crear una aplicación</button>`;
+  document.body.appendChild(wrap);
+  wrap.querySelector("[data-close]").onclick = () => wrap.remove();
+  try {
+    const d = await studioApi("listProjects");
+    const list = wrap.querySelector(".project-list");
+    if (!d.projects.length) list.innerHTML = `<div class="drawer-empty">Aún no hay proyectos.<br><small>Describe una aplicación en el chat y Tendy convertirá la idea en un plan real.</small></div>`;
+    else list.innerHTML = d.projects.map(projectCard).join("");
+    list.querySelectorAll("[data-project]").forEach(btn => btn.onclick = async () => { const p = await studioApi("getProject", { project_id: btn.dataset.project }); wrap.remove(); showProjectContext(p); });
+  } catch (e) { wrap.querySelector(".project-list").innerHTML = `<div class="drawer-empty">No pude cargar tus proyectos.</div>`; }
+  wrap.querySelector("#new-project").onclick = () => { wrap.remove(); const input=$("#input"); input.value="Quiero crear una nueva aplicación: "; input.focus(); };
+}
+function projectCard(p) {
+  const labels={draft:"Borrador",planning:"Planificando",developing:"Construyendo",testing:"Probando",awaiting_approval:"Esperando decisión",publishing:"Publicando",completed:"Publicado",failed:"Con error"};
+  return `<button class="project-card" data-project="${esc(p.id)}"><span class="project-mark">✦</span><span class="project-card-main"><strong>${esc(p.name)}</strong><small>${esc(labels[p.status]||p.status)} · v${p.version||0}</small></span><span class="chevron">›</span></button>`;
+}
+
+
+function showProjectContext(d) {
+  const p=d.project, done=(d.tasks||[]).filter(t=>t.status==='completed').length, total=(d.tasks||[]).length;
+  const text = `Proyecto seleccionado: ${p.name}. Estado: ${p.status}. Progreso: ${done}/${total} tareas. ${p.production_url ? `Enlace: ${p.production_url}` : "Todavía no está publicado."}`;
+  const input=$("#input"); input.value=text; input.focus(); toast("Proyecto cargado en el chat");
 }
 
 const SUGGESTIONS = [
