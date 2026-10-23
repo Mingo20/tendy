@@ -12,6 +12,12 @@ let messages = [];
 let waiting = false;
 let pollTimer = null;
 let toastTimer = null;
+let turnController = null;
+let turnProgress = 0;
+let turnPhase = "";
+let attachments = [];
+let dbPromise = null;
+const DB_NAME = "tendy-local-v1";
 
 const clientId = (() => {
   let id = localStorage.getItem("tendy_client");
@@ -44,6 +50,24 @@ async function postJson(url, action, extra) {
 const api = (action, extra = {}) => postJson(API, action, extra);
 const studioApi = (action, extra = {}) => postJson(STUDIO_API, action, extra);
 
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    if (!window.indexedDB) return resolve(null);
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => { const db=r.result; if(!db.objectStoreNames.contains("records")) db.createObjectStore("records", {keyPath:"key"}); };
+    r.onsuccess=()=>resolve(r.result); r.onerror=()=>resolve(null);
+  }); return dbPromise;
+}
+async function idbPut(value) { const db=await openDB(); if(!db) return; return new Promise(res=>{const tx=db.transaction("records","readwrite");tx.objectStore("records").put(value);tx.oncomplete=()=>res();tx.onerror=()=>res();}); }
+async function idbAll() { const db=await openDB(); if(!db) return []; return new Promise(res=>{const tx=db.transaction("records");const r=tx.objectStore("records").getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>res([]);}); }
+async function idbDelete(key) { const db=await openDB(); if(!db) return; return new Promise(res=>{const tx=db.transaction("records","readwrite");tx.objectStore("records").delete(key);tx.oncomplete=()=>res();tx.onerror=()=>res();}); }
+async function flushOutbox() { if(!navigator.onLine) return; const rows=await idbAll(); for(const row of rows.filter(x=>x.type==="outbox")){ try{await api("send", {content:row.content,attachments:row.attachments||[]}); await idbDelete(row.key);}catch{break;} } }
+async function idbGet(key) { const db=await openDB(); if(!db) return null; return new Promise(res=>{const tx=db.transaction("records");const r=tx.objectStore("records").get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);}); }
+async function cacheConversation() { await idbPut({key:`history-${clientId}`,type:"history",messages}); await idbPut({key:"sync-state",type:"meta",online:navigator.onLine,at:new Date().toISOString()}); }
+async function loadCachedConversation() { const c=await idbGet(`history-${clientId}`); if(c?.messages?.length && !messages.length){messages=c.messages.map(m=>({...m,offline:true}));renderMessages();} }
+
 // ── iconos minimalistas (trazo, sin emojis) ───────────
 const ICONS = {
   compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
@@ -66,6 +90,13 @@ const ICONS = {
   store: '<path d="M4 9 5.5 4h13L20 9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/><path d="M5 12v8h14v-8"/>',
   users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.5A6 6 0 0 1 21 20"/>',
   book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5V21.5"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  chat: '<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>',
+  paperclip: '<path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 6"/>',
+  pulse: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.2 1.8c-1 .8-1.8 1.2-1.8 2.7M12 17h.01"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 3 3 2-2 6 5"/>',
+  file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/>',
   spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>',
 };
 const icon = (n, extra = "") => `<svg class="i ${extra}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ICONS.spark}</svg>`;
@@ -257,26 +288,28 @@ function renderChat() {
       <h1>Tendy <span class="grad">AI</span></h1>
       <div class="status" id="status"><span class="dot"></span><span>en línea</span></div>
     </div>
-    <button class="project-btn" id="projects-btn" title="Mis proyectos" aria-label="Mis proyectos">${icon("layers")}<span class="project-label">Proyectos</span></button>
-    <button class="icon-btn" id="settings-btn" title="Configurar a Tendy" aria-label="Configurar a Tendy">${icon("gear", "")}</button>
+    <button class="menu-btn" id="menu-btn" title="Menú" aria-label="Abrir menú">${icon("menu")}</button>
   </header>
+  <div class="activity-card" id="activity" hidden><div class="activity-top"><span class="activity-dot"></span><strong id="activity-label">Preparando</strong><span id="activity-percent">0%</span></div><div class="progress-track"><span id="progress-fill"></span></div><small id="activity-note">Estimación por fases del turno</small></div>
   <div id="install-slot"></div>
   <main class="msgs" id="msgs"></main>
   <div class="chips" id="chips"></div>
   <footer class="composer">
     <div class="composer-box">
+      <button class="attach-btn" id="attach-btn" title="Adjuntar imagen o archivo" aria-label="Adjuntar">${icon("plus")}</button><input id="file-input" type="file" accept="image/*,.pdf,.txt,.csv,.json,.md,.doc,.docx" multiple hidden>
       <textarea id="input" rows="1" placeholder="Escríbele algo a Tendy…" aria-label="Mensaje"></textarea>
       <button class="send-btn" id="send" title="Enviar" aria-label="Enviar">${icon("send")}</button>
     </div>
   </footer>
 </div>`;
   wireAvatar();
-  $("#settings-btn").addEventListener("click", openSettings);
-  $("#projects-btn").addEventListener("click", openProjects);
+  $("#menu-btn").addEventListener("click", openNavigation);
+  $("#attach-btn").addEventListener("click", () => $("#file-input").click());
+  $("#file-input").addEventListener("change", (e) => prepareAttachments([...e.target.files]));
   const input = $("#input");
   input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; });
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input.value); } });
-  $("#send").addEventListener("click", () => sendMessage(input.value));
+  $("#send").addEventListener("click", () => waiting ? cancelTurn() : sendMessage(input.value));
   $("#msgs").addEventListener("click", onMsgClick);
   renderChips();
   loadHistory();
@@ -389,6 +422,7 @@ function onbBlocks(i) {
 function pushLocalTendy(content) {
   messages.push({ id: "local-" + Date.now() + Math.random(), role: "tendy", content, created_date: new Date().toISOString(), local: true, onb: true });
   renderMessages();
+  const box = $("#msgs"); if (box) requestAnimationFrame(() => box.scrollTo({ top: box.scrollHeight, behavior: "smooth" }));
 }
 
 // ── sugerencias (iconos minimalistas) ─────────────────
@@ -499,52 +533,85 @@ function appendMessage(m) {
   if (messages.some((x) => x.id && x.id === m.id)) return;
   messages.push(m);
   renderMessages();
+  cacheConversation();
 }
 
 async function loadHistory() {
   try {
+    await loadCachedConversation();
     const d = await api("history");
-    messages = d.messages || [];
+    const localKeep = messages.filter((m) => m.local && (m.onb || m.onbUser));
+    messages = [...(d.messages || []), ...localKeep];
     renderMessages();
-    const last = messages[messages.length - 1];
+    cacheConversation();
+    const persisted = messages.filter((m) => !m.local);
+    const last = persisted[persisted.length - 1];
     if (last && last.role === "user") { setWaiting(true); startPolling(); }
     api("getConfig").then((d2) => { config = d2.config || config; }).catch(() => {});
   } catch (ex) { toast("No pude cargar el historial: " + ex.message); }
+}
+function setActivity(phase, pct, note = "Fase real del turno") {
+  turnPhase = phase; turnProgress = Math.max(0, Math.min(100, pct));
+  const box = $("#activity"); if (!box) return;
+  box.hidden = !waiting;
+  $("#activity-label", box).textContent = phase;
+  $("#activity-percent", box).textContent = `${turnProgress}%`;
+  $("#progress-fill", box).style.width = `${turnProgress}%`;
+  $("#activity-note", box).textContent = note;
 }
 function setWaiting(v) {
   waiting = v;
   setStatus(v ? "thinking" : "idle");
   const send = $("#send");
-  if (send) send.disabled = v;
+  if (send) { send.disabled = false; send.innerHTML = v ? icon("close") : icon("send"); send.title = v ? "Cancelar seguimiento" : "Enviar"; send.setAttribute("aria-label", v ? "Cancelar" : "Enviar"); send.classList.toggle("cancel", v); }
+  if (v) setActivity("Analizando tu solicitud", 15, "Estimación por fases: recepción y análisis");
+  else { setActivity("Completado", 100, "Turno finalizado"); setTimeout(() => { const a=$("#activity"); if(a) a.hidden=true; }, 900); }
   renderMessages();
 }
-function stopPolling() { clearTimeout(pollTimer); pollTimer = null; }
+function stopPolling() { clearTimeout(pollTimer); pollTimer = null; if (turnController) turnController.abort(); turnController = null; }
+function cancelTurn() {
+  if (!waiting) return;
+  stopPolling(); setWaiting(false); toast("Seguimiento cancelado. La ejecución que ya empezó en el servidor puede terminar, pero puedes enviar una nueva solicitud.");
+}
 function startPolling() {
-  stopPolling();
+  stopPolling(); turnController = new AbortController();
+  const phases = [["Analizando tu solicitud",15],["Planificando la respuesta",35],["Trabajando con tus herramientas",60],["Verificando el resultado",82]]; let phase=0;
   const tick = async () => {
     try {
+      if (phase < phases.length) { setActivity(phases[phase][0], phases[phase][1], "Estimación basada en el estado observable del turno"); phase++; }
       const persisted = messages.filter((m) => !m.local);
       const after = persisted.length ? persisted[persisted.length - 1].created_date : "";
       const d = await api("history", after ? { after } : {});
       let gotReply = false;
       for (const m of d.messages || []) { appendMessage(m); if (m.role === "tendy") gotReply = true; }
-      if (gotReply) { setWaiting(false); setStatus("speaking"); setTimeout(() => setStatus("idle"), 2600); return; }
-    } catch { /* reintenta */ }
-    if (waiting) pollTimer = setTimeout(tick, 4000);
+      if (gotReply) { setActivity("Respuesta lista",100,"Turno finalizado"); setWaiting(false); setStatus("speaking"); setTimeout(() => setStatus("idle"),2600); return; }
+    } catch (e) { if (e.name !== "AbortError") setActivity("Reconectando", turnProgress, "No se perdió tu solicitud"); }
+    if (waiting) pollTimer = setTimeout(tick, 2800);
   };
-  pollTimer = setTimeout(tick, 3500);
+  pollTimer = setTimeout(tick, 1200);
+}
+function openNavigation() {
+  const {o,close}=openModal(`<div class="sheet-head"><div><span class="eyebrow">CENTRO DE TENDY</span><h3>Navegación</h3></div><button class="icon-btn" data-close aria-label="Cerrar">${icon("close")}</button></div><div class="nav-grid">
+    <button data-nav="projects">${icon("layers")}<span>Proyectos y aplicaciones</span></button><button data-nav="history">${icon("chat")}<span>Conversaciones e historial</span></button><button data-nav="new">${icon("plus")}<span>Nueva conversación</span></button><button data-nav="settings">${icon("gear")}<span>Configuración</span></button><button data-nav="files">${icon("paperclip")}<span>Archivos y recursos</span></button><button data-nav="activity">${icon("pulse")}<span>Actividad y tareas</span></button><button data-nav="help">${icon("help")}<span>Ayuda y soporte</span></button></div>`,`Navegación`);
+  o.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{const n=b.dataset.nav;close();if(n==="projects")openProjects();else if(n==="settings")openSettings();else if(n==="new"){messages=[];renderMessages();toast("Nueva conversación lista");}else if(n==="files")toast(attachments.length?`${attachments.length} archivo(s) pendiente(s)`:"Aún no hay archivos adjuntos");else if(n==="activity")toast(waiting?turnPhase:"No hay un turno activo");else if(n==="help")toast("Describe la aplicación o tarea que quieres resolver y Tendy te guiará paso a paso");else toast("El historial se conserva en este chat y en tu dispositivo");});
 }
 async function sendMessage(text, skipEcho) {
-  const content = (text || "").trim();
-  const input = $("#input");
-  if (!content || waiting) return;
-  if (!skipEcho) appendMessage({ role: "user", content, created_date: new Date().toISOString(), local: true });
-  else messages.push({ id: "local-s-" + Date.now(), role: "user", content: content.split("\n")[0] + " …", created_date: new Date().toISOString(), local: true, onbUser: true });
-  if (input) { input.value = ""; input.style.height = "auto"; }
-  setWaiting(true);
-  try { await api("send", { content }); startPolling(); }
-  catch (ex) { setWaiting(false); toast("No se pudo enviar: " + ex.message); }
+  const content = (text || "").trim(); const input = $("#input");
+  if ((!content && !attachments.length) || waiting) return;
+  const localContent = content || `Adjuntos: ${attachments.map(a=>a.name).join(", ")}`;
+  const outboxKey = `outbox-${Date.now()}-${Math.random()}`;
+  if (!skipEcho) appendMessage({ role:"user", content:localContent, created_date:new Date().toISOString(), local:true, attachments:attachments.map(a=>({name:a.name,type:a.type,size:a.size})) });
+  else messages.push({id:"local-s-"+Date.now(),role:"user",content:content.split("\n")[0]+" …",created_date:new Date().toISOString(),local:true,onbUser:true});
+  await idbPut({key:outboxKey,type:"outbox",content,attachments:attachments.map(a=>({name:a.name,type:a.type,size:a.size,data:a.data}))});
+  if (input) { input.value=""; input.style.height="auto"; }
+  const outgoing = { content, attachments: attachments.map(a=>({name:a.name,type:a.type,size:a.size,data:a.data})) }; attachments=[]; renderAttachmentTray(); setWaiting(true);
+  try { if(!navigator.onLine) throw new Error("offline"); await api("send", outgoing); await idbDelete(outboxKey); await idbPut({key:"last-sync",type:"meta",value:new Date().toISOString()}); startPolling(); } catch(ex) { setWaiting(false); if(ex.message === "offline") toast("Guardado localmente. Se enviará al recuperar la conexión."); else toast("No se pudo enviar: "+ex.message); }
 }
+function prepareAttachments(files) {
+  const reads=files.slice(0,5).map(f=>new Promise(resolve=>{if(f.size>2_000_000){toast(`${f.name} supera 2 MB`);return resolve(null);}const r=new FileReader();r.onload=()=>resolve({name:f.name,type:f.type||"application/octet-stream",size:f.size,data:String(r.result).slice(0,2_500_000)});r.readAsDataURL(f);}));
+  Promise.all(reads).then(xs=>{attachments=[...attachments,...xs.filter(Boolean)];renderAttachmentTray();});
+}
+function renderAttachmentTray(){const old=$("#attachment-tray");if(old)old.remove();if(!attachments.length)return;const c=document.createElement("div");c.id="attachment-tray";c.className="attachment-tray";c.innerHTML=attachments.map((a,i)=>`<span>${icon(a.type.startsWith("image/")?"image":"file")} ${esc(a.name)} <button data-rm="${i}" aria-label="Quitar">×</button></span>`).join("");$(".composer").prepend(c);c.onclick=e=>{const b=e.target.closest("[data-rm]");if(b){attachments.splice(+b.dataset.rm,1);renderAttachmentTray();}};}
 
 // ── configuración ─────────────────────────────────────
 const TONES = ["cercano", "profesional", "creativo", "directo"];
@@ -574,5 +641,7 @@ function openSettings() {
 }
 
 // ── arranque ──────────────────────────────────────────
+window.addEventListener("online", () => { toast("Conexión recuperada. Sincronizando…"); flushOutbox(); loadHistory(); });
+window.addEventListener("offline", () => toast("Sin conexión. Puedes seguir escribiendo; se guardará localmente."));
 renderWelcome();
 })();

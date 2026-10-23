@@ -62,3 +62,14 @@ La interfaz ahora incluye un espacio de proyectos para crear aplicaciones median
 - Skills iniciales: requirements, architecture, uiux, frontend, backend, data, integrations, github, qa, debugging, deployment, maintenance, visuals, security y docs.
 - El workflow `Tendy — responder mensaje` coordina el chat y crea planes de proyecto reales.
 - La app publicada usa sesiones anónimas para esta primera versión. Para producción multiusuario hay que activar autenticación Base44 y reforzar RLS antes de manejar datos privados.
+
+## Actualización v3
+
+- Barra de progreso por fases observables y botón Cancelar para detener el seguimiento local del turno.
+- Tarjeta de actividad dinámica.
+- IndexedDB para caché de conversaciones y cola offline con sincronización al recuperar conexión.
+- Adjuntos de imágenes y archivos compatibles de hasta 2 MB por archivo.
+- Menú inferior con proyectos, historial, nueva conversación, configuración, archivos, actividad y ayuda.
+- Skill obligatoria PWA + instalación + IndexedDB para los proyectos nuevos.
+
+Limitación conocida: el workflow de Base44 despierta al agente mediante una actividad LLM y no expone WebSocket ni cancelación nativa. La interfaz muestra fases estimadas explícitas y el botón Cancelar detiene el polling y permite una nueva solicitud; no puede interrumpir una ejecución del servidor que ya comenzó.

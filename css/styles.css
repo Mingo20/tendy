@@ -287,3 +287,34 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 }
 body { background: #E9ECF1; }
 @media (max-width: 767px) { body { background: var(--bg); } }
+
+#install-slot { flex: none; position: relative; z-index: 4; }
+#install-slot:empty { display: none; }
+.msgs { min-height: 0; }
+
+/* Ejecución observable, sin puntos ficticios */
+.activity-card { margin: 10px 16px 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); animation: activity-in .3s var(--ease); }
+.activity-card[hidden] { display: none; }
+.activity-top { display:flex; align-items:center; gap:8px; font-size:13px; }
+.activity-top strong { flex:1; color:var(--text); }
+.activity-top span:last-child { color:var(--blue); font-weight:700; font-size:12px; }
+.activity-dot { width:8px; height:8px; border-radius:50%; background:var(--blue); animation:pulse-dot 1.3s infinite; }
+.progress-track { height:6px; margin-top:9px; background:#E8EBF0; border-radius:8px; overflow:hidden; }
+#progress-fill { display:block; height:100%; width:0; background:var(--blue); border-radius:8px; transition:width .5s ease; }
+.activity-card small { display:block; margin-top:6px; color:var(--muted); font-size:11px; }
+@keyframes activity-in { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:none} }
+@keyframes pulse-dot { 50%{opacity:.35;transform:scale(.75)} }
+.attach-btn { width:36px; height:36px; border-radius:50%; color:var(--muted); display:grid; place-items:center; flex:none; transition:color .2s,background .2s; }
+.attach-btn:hover { color:var(--blue); background:var(--blue-soft); }
+.attach-btn .i { width:19px;height:19px; }
+.send-btn.cancel { background:#B42318; }
+.attachment-tray { display:flex; gap:7px; overflow-x:auto; padding:5px 4px 8px; }
+.attachment-tray span { display:inline-flex;align-items:center;gap:5px;white-space:nowrap;padding:6px 9px;border:1px solid var(--border);border-radius:9px;background:var(--surface);font-size:12px;color:var(--muted); }
+.attachment-tray .i { width:14px;height:14px;color:var(--blue); }
+.attachment-tray button { color:var(--muted);font-size:16px;line-height:1; }
+.nav-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+.nav-grid button { display:flex;align-items:center;gap:10px;text-align:left;padding:14px 12px;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:var(--text);font-size:13px;min-height:62px;transition:.2s; }
+.nav-grid button:hover { border-color:#BFD3FB;background:var(--blue-soft); }
+.nav-grid .i { color:var(--blue);width:20px;height:20px;flex:none; }
+@media (max-width:767px) { .activity-card{margin-left:12px;margin-right:12px}.nav-grid{grid-template-columns:1fr}.activity-top{font-size:12.5px} }
+@media (min-width:768px) { .activity-card{width:min(760px,calc(100% - 80px));margin-left:auto;margin-right:auto}.chat{position:relative} }
