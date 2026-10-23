@@ -42,7 +42,7 @@ function toast(msg) {
   toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
 }
 async function postJson(url, action, extra) {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, client_id: clientId, ...extra }) });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, client_id: clientId, conversation_id: localStorage.getItem("tendy_conversation") || "main", ...extra }) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || ("Error " + res.status));
   return data;
@@ -605,7 +605,7 @@ async function sendMessage(text, skipEcho) {
   await idbPut({key:outboxKey,type:"outbox",content,attachments:attachments.map(a=>({name:a.name,type:a.type,size:a.size,data:a.data}))});
   if (input) { input.value=""; input.style.height="auto"; }
   const outgoing = { content, attachments: attachments.map(a=>({name:a.name,type:a.type,size:a.size,data:a.data})) }; attachments=[]; renderAttachmentTray(); setWaiting(true);
-  try { if(!navigator.onLine) throw new Error("offline"); await api("send", outgoing); await idbDelete(outboxKey); await idbPut({key:"last-sync",type:"meta",value:new Date().toISOString()}); startPolling(); } catch(ex) { setWaiting(false); if(ex.message === "offline") toast("Guardado localmente. Se enviará al recuperar la conexión."); else toast("No se pudo enviar: "+ex.message); }
+  try { if(!navigator.onLine) throw new Error("offline"); const chatRes = await api("chat", outgoing); if (chatRes && chatRes.ok === false && chatRes.glm === false) { toast("Motor GLM no disponible: " + (chatRes.error || "")); } await idbDelete(outboxKey); await idbPut({key:"last-sync",type:"meta",value:new Date().toISOString()}); startPolling(); } catch(ex) { setWaiting(false); if(ex.message === "offline") toast("Guardado localmente. Se enviará al recuperar la conexión."); else toast("No se pudo enviar: "+ex.message); }
 }
 function prepareAttachments(files) {
   const reads=files.slice(0,5).map(f=>new Promise(resolve=>{if(f.size>2_000_000){toast(`${f.name} supera 2 MB`);return resolve(null);}const r=new FileReader();r.onload=()=>resolve({name:f.name,type:f.type||"application/octet-stream",size:f.size,data:String(r.result).slice(0,2_500_000)});r.readAsDataURL(f);}));
