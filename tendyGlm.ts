@@ -1,10 +1,10 @@
-// Tendy — API con motor GLM (Z.ai / BigModel)
+// Tendy — API con motor GLM 5.3 Flash vía NVIDIA NIM
 // Reemplaza tendyApi: chat directo con GLM + historial y config en TendyRecord.
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
-const GLM_KEY = "4fefcead9d09486493f40789430201a5";
-const GLM_BASES = ["https://api.z.ai/api/paas/v4", "https://open.bigmodel.cn/api/paas/v4"];
-const GLM_MODEL = "glm-4.6";
+const GLM_KEY = "nvapi-TU-CLAVE-AQUI (la clave real vive solo en la función desplegada en Base44)";
+const GLM_BASES = ["https://integrate.api.nvidia.com/v1"];
+const GLM_MODEL = "z-ai/glm-5.3-flash";
 const TONES = ["cercano", "profesional", "creativo", "directo"];
 const DEFAULT_CONFIG = { display_name: "Domingo", tone: "cercano", instructions: "" };
 
@@ -24,14 +24,19 @@ async function glmChat(messages: any[]) {
   let lastErr = "";
   for (const base of GLM_BASES) {
     try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 170000);
       const res = await fetch(base + "/chat/completions", {
         method: "POST",
         headers: { "Authorization": "Bearer " + GLM_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: GLM_MODEL, messages, max_tokens: 2048, temperature: 0.7 }),
+        body: JSON.stringify({ model: GLM_MODEL, messages, max_tokens: 4096, temperature: 0.7, stream: false }),
+        signal: ctrl.signal,
       });
+      clearTimeout(t);
       const data: any = await res.json().catch(() => ({}));
-      if (!res.ok) { lastErr = "GLM " + res.status + ": " + (data?.error?.message ?? ""); continue; }
-      const content = data?.choices?.[0]?.message?.content;
+      if (!res.ok) { lastErr = "GLM " + res.status + ": " + (data?.error?.message ?? data?.detail ?? ""); continue; }
+      const msg = data?.choices?.[0]?.message ?? {};
+      const content = msg?.content ?? msg?.reasoning_content ?? "";
       if (content) return { ok: true, content: String(content).trim() };
       lastErr = "GLM sin contenido";
     } catch (e: any) { lastErr = e?.message ?? "fallo de red GLM"; }
