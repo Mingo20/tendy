@@ -5,6 +5,12 @@ instalable. La interfaz es solo la cara visible: el motor de Tendy es un Superag
 de Base44 con acceso a navegador, búsquedas web, correo, calendario, GitHub, apps
 y archivos del dueño, configurado con un workflow que responde cada mensaje.
 
+## Motor (v2 — GLM)
+
+Tendy ahora responde con el modelo **GLM (Z.ai / BigModel)** vía la función `tendyGlm` en Base44:
+la app envía `chat`, la función guarda el mensaje, consulta GLM y guarda la respuesta como `msg_tendy`.
+Si la clave GLM no está disponible, el mensaje queda guardado y la app lo informa.
+
 ## Uso
 
 - **Aplicación:** https://mingo20.github.io/tendy/

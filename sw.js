@@ -1,6 +1,6 @@
 // Tendy — Service Worker: red primero para documentos/estilos (actualizaciones
 // inmediatas), caché como respaldo sin conexión. Íconos cache-first.
-const CACHE = "tendy-v5";
+const CACHE = "tendy-v6";
 const SHELL = ["./", "./index.html", "./css/styles.css", "./js/app.js", "./manifest.webmanifest"];
 const PREFETCH = ["./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
