@@ -1,81 +1,76 @@
-# Tendy — Tu agente personal de IA
+<div align="center">
 
-Tendy es un agente de IA con identidad propia que vive en tu dispositivo como PWA
-instalable. La interfaz es solo la cara visible: el motor de Tendy es un Superagent
-de Base44 con acceso a navegador, búsquedas web, correo, calendario, GitHub, apps
-y archivos del dueño, configurado con un workflow que responde cada mensaje.
+<img src="https://raw.githubusercontent.com/Mingo20/dtech/main/assets/brand/dg-logo-512.png" width="84" alt="DGTech" />
 
-## Motor (v2 — GLM)
+# Tendy
 
-Tendy ahora responde con el modelo **GLM (Z.ai / BigModel)** vía la función `tendyGlm` en Base44:
-la app envía `chat`, la función guarda el mensaje, consulta GLM y guarda la respuesta como `msg_tendy`.
-Si la clave GLM no está disponible, el mensaje queda guardado y la app lo informa.
+**Agente personal de IA con identidad propia y avatar interactivo. Navega, busca, redacta y gestiona por ti desde el celular o la PC.**
 
-## Uso
+![Versión](https://img.shields.io/badge/versión-2.0.0-FF6A13?style=flat-square) ![Estado](https://img.shields.io/badge/estado-Producción-2EA44F?style=flat-square) ![Tipo](https://img.shields.io/badge/tipo-PWA_%2B_Superagent_Base44-0B2545?style=flat-square) ![DGTech](https://img.shields.io/badge/by-DGTech-FF6A13?style=flat-square)
 
-- **Aplicación:** https://mingo20.github.io/tendy/
-- **PIN de acceso (por defecto):** `tendy2026` (configurable como secreto `TENDY_PIN`)
-- Instálala desde el menú de tu navegador ("Añadir a pantalla de inicio").
+[**Abrir la aplicación**](https://mingo20.github.io/tendy/) · [Hub DGTech](https://mingo20.github.io/dtech/) · [Guía para agentes](AGENTS.md) · [Cambios](CHANGELOG.md)
 
-## Cómo funciona
+<img src="https://raw.githubusercontent.com/Mingo20/dtech/main/assets/shots/tendy.jpg" alt="Tendy" width="720" />
 
-```
-[ Interfaz PWA ]  →POST→  [ Función tendyApi ]  →registro→  [ Entidad TendyRecord ]
-     GitHub Pages            Base44 Functions                (msg_user)
-                                                                   │
-                                                                   ▼ trigger
-                                                    [ Workflow "Tendy — responder mensaje" ]
-                                                                   │
-                                                                   ▼
-                                                          [ Agente (Superagent) ]
-                                                    responde como Tendy, usa sus
-                                                    herramientas y guarda msg_tendy
-                                                                   │
-     [ Interfaz hace polling del historial ] ←────────────────────┘
-```
+</div>
 
-1. La app se autentica con PIN y guarda mensajes en `TendyRecord` (`kind: msg_user`).
-2. El workflow se dispara con cada mensaje nuevo y despierta al agente.
-3. El agente lee la configuración del usuario (nombre, tono, instrucciones),
-   usa sus herramientas (búsqueda, navegador, correos, etc.) y guarda la
-   respuesta (`kind: msg_tendy`).
-4. La interfaz muestra la respuesta con el avatar de Tendy animado.
+## El problema
 
-## Configuración de Tendy
+Un asistente útil debe poder actuar, no solo conversar, y debe estar siempre a mano.
 
-Desde ⚙️ dentro de la app: cómo debe llamarte, su tono
-(cercano / profesional / creativo / directo) e instrucciones personalizadas.
+## Qué hace
 
-## Estructura
+- Chat con avatar interactivo
+- Respuestas con el modelo GLM (Z.ai) vía tendyGlm
+- Acceso protegido por PIN
+- Instalable como PWA
+- El motor es un Superagent con navegador, búsqueda, correo, calendario y GitHub
 
-- `index.html`, `css/`, `js/` — la PWA (vanilla, sin dependencias).
-- `tendyApi-reference.ts` — copia de referencia de la función desplegada en Base44.
+## Cómo está construido
 
-## Limitaciones honestas
+**Tipo:** PWA + Superagent Base44
 
-- Tendy puede hacer todo lo que el agente puede: buscar, navegar, leer/escribir
-  correos, calendario, GitHub, generar imágenes, etc. Las compras con pago real y
-  otras acciones delicadas requieren aprobación humana.
-- El agente nunca pretende ser un abogado ni da asesoría legal.
+La PWA envía el mensaje a tendyGlm, que lo guarda, consulta GLM y guarda la respuesta como msg_tendy. La app lee las respuestas de la misma entidad.
 
+**Tecnologías**
 
-## Tendy Studio
+- HTML, CSS y JavaScript sin frameworks
+- Service Worker (tendy-v6)
+- Funciones Base44: tendyGlm y tendyStudioApi
+- Modelo GLM de Z.ai (BigModel)
 
-La interfaz ahora incluye un espacio de proyectos para crear aplicaciones mediante conversación. Cada solicitud suficientemente clara puede crear un `TendyProject`, generar `TendyTask` con skills y mantener estados persistentes.
+**Backend**
 
-- API de orquestación: `https://superagent-573efe2c.base44.app/functions/tendyStudioApi`
-- Entidades: `TendyProject`, `TendyTask`, `TendySkill`, `TendyArtifact`
-- Skills iniciales: requirements, architecture, uiux, frontend, backend, data, integrations, github, qa, debugging, deployment, maintenance, visuals, security y docs.
-- El workflow `Tendy — responder mensaje` coordina el chat y crea planes de proyecto reales.
-- La app publicada usa sesiones anónimas para esta primera versión. Para producción multiusuario hay que activar autenticación Base44 y reforzar RLS antes de manejar datos privados.
+- tendyGlm
+- tendyStudioApi
+- tendyApi (referencia)
 
-## Actualización v3
+**Datos**
 
-- Barra de progreso por fases observables y botón Cancelar para detener el seguimiento local del turno.
-- Tarjeta de actividad dinámica.
-- IndexedDB para caché de conversaciones y cola offline con sincronización al recuperar conexión.
-- Adjuntos de imágenes y archivos compatibles de hasta 2 MB por archivo.
-- Menú inferior con proyectos, historial, nueva conversación, configuración, archivos, actividad y ayuda.
-- Skill obligatoria PWA + instalación + IndexedDB para los proyectos nuevos.
+- TendyRecord (msg_user, msg_tendy)
 
-Limitación conocida: el workflow de Base44 despierta al agente mediante una actividad LLM y no expone WebSocket ni cancelación nativa. La interfaz muestra fases estimadas explícitas y el botón Cancelar detiene el polling y permite una nueva solicitud; no puede interrumpir una ejecución del servidor que ya comenzó.
+## Datos sensibles
+
+Conversaciones privadas del usuario.
+
+## Reglas del proyecto
+
+- El PIN de acceso es un secreto (TENDY_PIN) y NO debe publicarse en el repositorio
+- Si no hay clave GLM el mensaje se guarda y la app lo informa
+
+## Pendientes conocidos
+
+- Cambiar el PIN por defecto que estuvo publicado en el README
+- Reemplazar el token fijo open-access por sesiones reales
+
+## Estructura del repositorio
+
+Consulta [AGENTS.md](AGENTS.md) para el mapa de archivos y las instrucciones de trabajo.
+
+## Parte de DGTech
+
+Este proyecto forma parte del ecosistema **DGTech**, un estudio de software dominicano que construye aplicaciones instalables para resolver problemas reales. Todas las aplicaciones están en [https://mingo20.github.io/dtech/](https://mingo20.github.io/dtech/).
+
+---
+
+<sub>© 2026 DGTech · Domingo Guerra · Todos los derechos reservados. Consulta el archivo NOTICE.</sub>
